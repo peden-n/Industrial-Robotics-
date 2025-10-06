@@ -3,10 +3,13 @@
 
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
+import roboticstoolbox as rtb
 from math import pi
 from spatialmath import SE3
 from spatialgeometry import Cuboid, Cylinder
 from roboticstoolbox.backends.swift import Swift
+import numpy as np
+from ir_support.robots.UR3 import UR3  # package from your link
 #from roboticstoolbox.models.DH import UR3
 
 
@@ -73,7 +76,7 @@ class Platform:
     gap_to_table: float = 0.52
     axis: str = "y"       # "x" (left/right of table) or "y" (front/back of table)
     side: str = "front"   # if axis="y": "front"(+Y) or "back"(-Y); if axis="x": "left"(-X) or "right"(+X)
-    color: Color = (0.55, 0.55, 0.58, 0.90)
+    color: Color = (0.55, 0.55, 0.58, 0.60)
 
     def center_pose(self, table: Table) -> SE3:
         if self.axis == "y":
@@ -143,7 +146,7 @@ class Workcell:
 
     def launch(self) -> Swift:
         env = Swift()
-        env.launch()
+        env.launch(realtime=True)
         self._env = env
         return env
 
@@ -160,24 +163,31 @@ class Workcell:
         self._env.add(plat)
 
         # mount UR3s on platform, facing table
-       # self.add_ur3(self.platform.center_pose(self.table) * SE3.Rz(self.platform.robot_yaw_towards_table()) * SE3(-0.3, -0.2, 0))
-
+       # self.add_ur3(base_pose= SE3(0,0.75,0.85) )
+         
+         #elf.platform.center_pose(self.table) * SE3(-0.3, -0.2, 0)
         # compute union bounds (table + platform) for enclosure
         minx, maxx, miny, maxy = self._plan_bounds_for_enclosure()
         for w in self.enclosure.walls_from_bounds(minx, maxx, miny, maxy):
+
             self._env.add(w)
 
-    # ---- helpers ----
+   
 
-    def add_ur3(self, base_pose: SE3) -> None:
+    def add_ur3(self, base_pose: SE3):
         """Place ONE UR3 at the given base pose (world frame)."""
-        if self._env is None:
-            raise RuntimeError("Call launch() first")
-      #  r = UR3()
-       # r.base = base_pose
-        #self._env.add(r)
+
+        r = UR3()
+        r.base = base_pose
+        r.add_to_env(self._env)
+        self._env.add(r)
+        self._env.step(0)  # force a render after adding robots
+        return r
+
+    
 
     def _plan_bounds_for_enclosure(self) -> Tuple[float, float, float, float]:
+
         # table bounds (center at 0,0)
         t_minx = -self.table.length/2
         t_maxx =  self.table.length/2
@@ -198,17 +208,89 @@ class Workcell:
         miny = min(t_miny, p_miny)
         maxy = max(t_maxy, p_maxy)
         return minx, maxx, miny, maxy
+     # ---- helpers ----
+    def solve_ik(robot, T_target):
+     """
+     Try full pose IK first; if it fails, try position-only (ignore orientation).
+     Returns a numpy array of joint angles or raises a ValueError.
+     """
+     q0 = np.array(robot.q if robot.q is not None else np.zeros(robot.n), dtype=float)
 
+     # 1) full pose (position + orientation)
+     try:
+        sol = robot.ikine_LM(T_target, q0=q0)
+        if sol.success:
+            return np.array(sol.q, dtype=float)
+     except Exception:
+        pass
+
+     # 2) position-only (mask: x,y,z true; roll/pitch/yaw false)
+     try:
+        mask = [1, 1, 1, 0, 0, 0]
+        sol = robot.ikine_LM(T_target, q0=q0, mask=mask)
+        if sol.success:
+            return np.array(sol.q, dtype=float)
+     except Exception:
+        pass
+
+     raise ValueError("IK did not converge for the requested target pose.")
 
 # ----------------- run -----------------
+def move_ur3(self,ur3, T_target: SE3):
+        
+        q_start = np.array(ur3.q, dtype=float)
+        q_goal = solve_ik(ur3, T_target)
+
+           
+        traj = rtb.jtraj(q_start, q_goal, 100).q
+        for q in traj:
+            print(q)
+            ur3.q = q
+            self._env.step(0.02)
+
+
+def solve_ik(robot, T_target):
+     """
+     Try full pose IK first; if it fails, try position-only (ignore orientation).
+     Returns a numpy array of joint angles or raises a ValueError.
+     """
+     q0 = np.array(robot.q if robot.q is not None else np.zeros(robot.n), dtype=float)
+
+     # 1) full pose (position + orientation)
+     try:
+        sol = robot.ikine_LM(T_target, q0=q0)
+        if sol.success:
+            return np.array(sol.q, dtype=float)
+     except Exception:
+        pass
+
+     # 2) position-only (mask: x,y,z true; roll/pitch/yaw false)
+     try:
+        mask = [1, 1, 1, 0, 0, 0]
+        sol = robot.ikine_LM(T_target, q0=q0, mask=mask)
+        if sol.success:
+            return np.array(sol.q, dtype=float)
+     except Exception:
+        pass
+
+     raise ValueError("IK did not converge for the requested target pose.")
 
 if __name__ == "__main__":
     # platform along the Y axis in front of the table, included in the enclosure
     cell = Workcell(
-        platform=Platform(axis="y", side="front", length=1.4, width=1.0, height=0.85, gap_to_table=0.22)
+        platform=Platform(axis="y", side="front", length=1.4, width=1.0, height=0.85, gap_to_table=0.02)
     )
+    base_pose= SE3(0,0.75,0.85) 
     env = cell.launch()
     cell.populate()
+    r = UR3()
+    r.base = base_pose
+    r.add_to_env(cell._env)
+    cell._env.add(r)
+    cell._env.step(0) 
+    move_ur3(cell,r,SE3(0,0.95,1.05) )
     #cell.add_ur3(SE3(-1.0, 0.0, 0.0))
+    #cell.move_ur3(cell._env.robots[0],[0, -pi/3, pi/3, 0, pi/2, 0])
+
     input("Scene ready (platform on Y axis, enclosure includes table+platform, 3 UR3s). Press Enter to quit...")
 
