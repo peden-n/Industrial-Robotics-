@@ -1,0 +1,25 @@
+•	AVERAGE DONUT SIZE 
+    - diameter: 90mm (plus/minus 10mm)
+    - height: 30mm (plus/minus 5mm)
+
+•	BOX SIZE x
+    - 130mm x 130mm x 120mm
+
+•	AUS STANDARD Pallet size 
+    - 1165 mm x 1165 mm
+
+•	Boxes per pallet:
+    - Approx. 64 boxes – see premier tech calc 
+
+•	Robots:
+    - Yaskawa Motoman GP/MH series GP7 [NATALIE]
+        -- Dofs: 6
+        -- Size:
+        -- Reach:
+        -- Weight:
+
+    - CRX-30iA Food Grade [PRAY]
+        -- Dofs: 6
+        -- Size:
+        -- Reach:
+        -- Weight:
