@@ -6,7 +6,7 @@ from typing import List, Tuple, Optional
 import roboticstoolbox as rtb
 from math import pi
 from spatialmath import SE3
-from spatialgeometry import Cuboid, Cylinder
+from spatialgeometry import Cuboid, Cylinder, Mesh
 from roboticstoolbox.backends.swift import Swift
 import numpy as np
 from ir_support.robots.UR3 import UR3  # package from your link
@@ -14,6 +14,30 @@ from ir_support.robots.UR3 import UR3  # package from your link
 
 
 Color = Tuple[float, float, float, float]  # RGBA 0..1
+
+#Define offests to fix donut positions
+donut_x_offset = -0.08
+donut_y_offset = -0.08
+donut_z_offset = 0.0
+burnt_x_offset = -0.08
+burnt_y_offset = -0.08
+burnt_z_offset = 0.0
+
+donut_offset = SE3(donut_x_offset, donut_y_offset, donut_z_offset)
+burnt_offset = SE3(burnt_x_offset, burnt_y_offset, burnt_z_offset)
+
+#----------------- meshes -----------------
+dounut = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut.dae",
+    pose=(SE3(0.1, 0.2, 0.9)+ donut_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+  )
+
+burnt = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut_burnt.dae",
+    pose=(SE3(0.0, 0.3, 0.9)+ burnt_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+ )
 
 
 # ----------------- fixtures -----------------
@@ -24,7 +48,7 @@ class Table:
     width: float = 0.8
     thickness: float = 0.06
     top_z: float = 0.90
-    color: Color = (0.45, 0.30, 0.20, 1.0)
+    color: Color = (0.80, 0.80, 0.80, 1.0)
 
     def build(self) -> Cuboid:
         return Cuboid([self.length, self.width, self.thickness],
@@ -51,20 +75,6 @@ class TableLegs:
         dims = [self.leg_size, self.leg_size, leg_h]
         return [Cuboid(dims, pose=SE3(sx*ox, sy*oy, zc), color=self.color)
                 for sx in (+1, -1) for sy in (+1, -1)]
-
-
-@dataclass
-class Bowl:
-    radius: float = 0.12
-    height: float = 0.07
-    xy: Tuple[float, float] = (0.0, 0.0)
-    color: Color = (0.88, 0.88, 0.92, 1.0)
-
-    def build(self, table: Table) -> Cylinder:
-        x, y = self.xy
-        return Cylinder(self.radius, self.height,
-                        pose=SE3(x, y, table.top_z + self.height/2),
-                        color=self.color)
 
 
 @dataclass
@@ -133,13 +143,11 @@ class Workcell:
         self,
         table: Optional[Table] = None,
         legs: Optional[TableLegs] = None,
-        bowl: Optional[Bowl] = None,
         platform: Optional[Platform] = None,
         enclosure: Optional[Enclosure] = None,
     ) -> None:
         self.table = table or Table()
         self.legs = legs or TableLegs(table=self.table)
-        self.bowl = bowl or Bowl()
         self.platform = platform or Platform(axis="y", side="front")  # default per your ask
         self.enclosure = enclosure or Enclosure()
         self._env: Optional[Swift] = None
@@ -157,7 +165,6 @@ class Workcell:
         tbl = self.table.build()
         self._env.add(tbl)
         for leg in self.legs.build(): self._env.add(leg)
-        self._env.add(self.bowl.build(self.table))
 
         plat = self.platform.build(self.table)
         self._env.add(plat)
@@ -244,7 +251,6 @@ def move_ur3(self,ur3, T_target: SE3):
            
         traj = rtb.jtraj(q_start, q_goal, 100).q
         for q in traj:
-            print(q)
             ur3.q = q
             self._env.step(0.02)
 
@@ -255,7 +261,7 @@ def solve_ik(robot, T_target):
      Returns a numpy array of joint angles or raises a ValueError.
      """
      q0 = np.array(robot.q if robot.q is not None else np.zeros(robot.n), dtype=float)
-
+     print(T_target)
      # 1) full pose (position + orientation)
      try:
         sol = robot.ikine_LM(T_target, q0=q0)
@@ -280,7 +286,7 @@ if __name__ == "__main__":
     cell = Workcell(
         platform=Platform(axis="y", side="front", length=1.4, width=1.0, height=0.85, gap_to_table=0.02)
     )
-    base_pose= SE3(0,0.75,0.85) 
+    base_pose= SE3(0,0.60,0.85) 
     env = cell.launch()
     cell.populate()
     r = UR3()
@@ -288,9 +294,21 @@ if __name__ == "__main__":
     r.add_to_env(cell._env)
     cell._env.add(r)
     cell._env.step(0) 
-    move_ur3(cell,r,SE3(0,0.95,1.05) )
+    cell._env.add(dounut)
+    cell._env.add(burnt)
+    #print(burnt.T [0], burnt.T [1], burnt.T [2])
+   # get_nut = SE3(burnt.T[0], burnt.T[1], burnt.T[2])  # 10 cm above 
+    #move_ur3(cell, r, T_above)
+    x, y, z = dounut.T[:3, -1]
+    print(x, y, z)
+    get_nut = (SE3(x, y, z)- donut_offset) # 10 cm above
+    GRASP_FROM_TOP = SE3.Rx(pi) * SE3(0, 0, -0.04) 
+   # print(get_nut)
+    move_ur3(cell,r,SE3(0,0.2,0.9) * GRASP_FROM_TOP
+             )
+             #SE3(0,0.2,0.9) * SE3.RPY(0, 0, -90, unit="deg") )
     #cell.add_ur3(SE3(-1.0, 0.0, 0.0))
     #cell.move_ur3(cell._env.robots[0],[0, -pi/3, pi/3, 0, pi/2, 0])
-
+    move_ur3(cell,r,SE3(0.2, 0.2, 0.9) * GRASP_FROM_TOP)
     input("Scene ready (platform on Y axis, enclosure includes table+platform, 3 UR3s). Press Enter to quit...")
 
