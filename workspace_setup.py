@@ -10,6 +10,7 @@ from spatialgeometry import Cuboid, Cylinder, Mesh
 from roboticstoolbox.backends.swift import Swift
 import numpy as np
 from ir_support.robots.UR3 import UR3  # package from your link
+
 #from roboticstoolbox.models.DH import UR3
 
 
@@ -26,9 +27,16 @@ burnt_z_offset = 0.0
 donut_offset = SE3(donut_x_offset, donut_y_offset, donut_z_offset)
 burnt_offset = SE3(burnt_x_offset, burnt_y_offset, burnt_z_offset)
 
+tool_offset = SE3(0, 0, 0)  # 40 mm above the donut when grasping from top
 #----------------- meshes -----------------
-dounut = Mesh(
+dounut1 = Mesh(
     filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut.dae",
+    pose=(SE3(0.1, 0.2, 0.9)+ donut_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+  )
+
+dounut2 = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut2.dae",
     pose=(SE3(0.1, 0.2, 0.9)+ donut_offset),  # place + rotate (degrees)
     scale= (0.001, 0.001, 0.001)                                          # adjust if needed
   )
@@ -38,7 +46,6 @@ burnt = Mesh(
     pose=(SE3(0.0, 0.3, 0.9)+ burnt_offset),  # place + rotate (degrees)
     scale= (0.001, 0.001, 0.001)                                          # adjust if needed
  )
-
 
 # ----------------- fixtures -----------------
 
@@ -225,7 +232,8 @@ class Workcell:
 
      # 1) full pose (position + orientation)
      try:
-        sol = robot.ikine_LM(T_target, q0=q0)
+        mask = [1, 1, 1, 1, 1, 1]
+        sol = robot.ikine_LM(T_target, q0=q0, mask=mask)
         if sol.success:
             return np.array(sol.q, dtype=float)
      except Exception:
@@ -241,17 +249,34 @@ class Workcell:
         pass
 
      raise ValueError("IK did not converge for the requested target pose.")
+    
+    
 
 # ----------------- run -----------------
-def move_ur3(self,ur3, T_target: SE3):
+def move_ur3(self,ur3, T_target: SE3, donut = None):
         
         q_start = np.array(ur3.q, dtype=float)
         q_goal = solve_ik(ur3, T_target)
 
            
-        traj = rtb.jtraj(q_start, q_goal, 100).q
+        traj = rtb.jtraj(q_start, q_goal, 150).q
         for q in traj:
             ur3.q = q
+            if donut is not None:
+              T_ee = ur3.fkine(q)             # SE3 pose of end-effector
+              T_donut = T_ee * donut_offset     # apply any offset so it doesn’t intersect the gripper
+
+               # Support both common spatialgeometry attributes
+              if hasattr(donut, "T"):
+                donut.T = T_donut
+              elif hasattr(donut, "pose"):
+                donut.pose = T_donut
+              else:
+                # Fallback: try a generic attribute name
+                try:
+                    setattr(donut, "pose", T_donut)
+                except Exception:
+                    pass
             self._env.step(0.02)
 
 
@@ -294,21 +319,31 @@ if __name__ == "__main__":
     r.add_to_env(cell._env)
     cell._env.add(r)
     cell._env.step(0) 
-    cell._env.add(dounut)
+    cell._env.add(dounut1)
+
     cell._env.add(burnt)
     #print(burnt.T [0], burnt.T [1], burnt.T [2])
-   # get_nut = SE3(burnt.T[0], burnt.T[1], burnt.T[2])  # 10 cm above 
+    #get_nut = SE3(dounut1.T[0], dounut1.T[1], dounut1.T[2])  # 10 cm above 
     #move_ur3(cell, r, T_above)
-    x, y, z = dounut.T[:3, -1]
+    x, y, z = dounut1.T[:3, -1]
     print(x, y, z)
     get_nut = (SE3(x, y, z)- donut_offset) # 10 cm above
-    GRASP_FROM_TOP = SE3.Rx(pi) * SE3(0, 0, -0.04) 
-   # print(get_nut)
-    move_ur3(cell,r,SE3(0,0.2,0.9) * GRASP_FROM_TOP
-             )
-             #SE3(0,0.2,0.9) * SE3.RPY(0, 0, -90, unit="deg") )
-    #cell.add_ur3(SE3(-1.0, 0.0, 0.0))
+    GRASP_FROM_TOP = SE3.Rx(pi) * SE3(0, 0, -0.08) 
+    print(get_nut)
+    get_nut = SE3(0.1, 0.2,0.9)
+
+    move_ur3(cell,r,get_nut * GRASP_FROM_TOP)
+    
+             
+    
     #cell.move_ur3(cell._env.robots[0],[0, -pi/3, pi/3, 0, pi/2, 0])
-    move_ur3(cell,r,SE3(0.2, 0.2, 0.9) * GRASP_FROM_TOP)
+    move_ur3(cell,r,SE3(0.2, 0.9, 0.90) * GRASP_FROM_TOP, donut=dounut1)
+   # x, y, z = dounut1.T[:3, -1]
+    cell._env.add(dounut2)
+    move_ur3(cell,r,get_nut * GRASP_FROM_TOP)
+    move_ur3(cell,r,SE3(0.2, 0.9, 0.93) * GRASP_FROM_TOP, donut=dounut2)
+  #  get_nut = (SE3(x, y, z)- donut_offset) # 10 cm above
+    move_ur3(cell,r,get_nut * GRASP_FROM_TOP)
+   # cell._env.add(dounut2)
     input("Scene ready (platform on Y axis, enclosure includes table+platform, 3 UR3s). Press Enter to quit...")
 
