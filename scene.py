@@ -22,6 +22,7 @@ TableShort = os.path.join(current_dir, "TableShort.stl")
 Conveyor = os.path.join(current_dir, "Conveyor.stl")
 Pallet = os.path.join(current_dir, "Pallet.stl")
 Walls = os.path.join(current_dir, "Walls.stl")
+# DonutBurnt = os.path.join(current_dir, "Donut_burnt.dae")
 
 
 # Create meshes at world origin and apply uniform scale. Adjust colors as needed.
@@ -33,7 +34,7 @@ TableShort = geometry.Mesh(TableShort, pose=SE3(0.65, 1.48, 0.4).A, color=(0.75,
 Conveyor = geometry.Mesh(Conveyor, pose=SE3(0, -0.5, 0.48).A, color=(0.3, 0.3, 0.3, 1), scale=SCALE_TUPLE)
 Pallet = geometry.Mesh(Pallet, pose=SE3(-0.9325, 1.7625, 0.0).A, color=(0.545, 0.271, 0.075, 1), scale=SCALE_TUPLE)
 Walls = geometry.Mesh(Walls, color=(1.0, 1.0, 1.0, 1), scale=SCALE_TUPLE)
-
+# DonutBurnt = geometry.Mesh(DonutBurnt, pose=SE3(0.7, 0.5, 0.9).A, color=(1.0, 0.8, 0.6, 1), scale=(0.001, 0.001, 0.001))
 
 env.add(Stand1)
 env.add(Stand2)
@@ -43,7 +44,7 @@ env.add(TableShort)
 env.add(Conveyor)
 env.add(Pallet)
 env.add(Walls)
-
+# env.add(DonutBurnt)
 
 # If you want them not to overlap, set poses individually, e.g.:
 # TableLong.T = SE3(0.0, 0.53, 0).A
