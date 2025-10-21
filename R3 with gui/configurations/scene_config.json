@@ -6,70 +6,96 @@
       "file": "Stand1.stl",
       "position": [0.0, 0.0, 0.0],
       "rotation": [0, 0, 0],
-      "color": [0.5, 0.0, 0.0, 1.0]
+      "color": [0.5, 0.0, 0.0, 1.0],
+      "scale": 0.001
     },
     {
       "name": "Stand2",
       "file": "Stand2.stl",
       "position": [0.0, 0.0, 0.0],
       "rotation": [0, 0, 0],
-      "color": [0.2, 0.5, 0.2, 1.0]
+      "color": [0.2, 0.5, 0.2, 1.0],
+      "scale": 0.001
     },
     {
       "name": "Stand3",
       "file": "Stand3.stl",
       "position": [0.0, 0.0, 0.0],
       "rotation": [0, 0, 0],
-      "color": [0.2, 0.2, 0.7, 1.0]
+      "color": [0.2, 0.2, 0.7, 1.0],
+      "scale": 0.001
     },
     {
       "name": "TableLong",
       "file": "TableLong.stl",
       "position": [0.0, 0.53, 0.4],
       "rotation": [0, 0, 0],
-      "color": [0.75, 0.75, 0.75, 1.0]
+      "color": [0.75, 0.75, 0.75, 1.0],
+      "scale": 0.001
     },
     {
       "name": "TableShort",
       "file": "TableShort.stl",
       "position": [0.95, 1.2, 0.4],
       "rotation": [0, 0, 0],
-      "color": [0.75, 0.75, 0.75, 1.0]
+      "color": [0.75, 0.75, 0.75, 1.0],
+      "scale": 0.001
     },
     {
       "name": "Conveyor",
       "file": "Conveyor.stl",
       "position": [0.0, -0.5, 0.48],
       "rotation": [0, 0, 0],
-      "color": [0.3, 0.3, 0.3, 1.0]
+      "color": [0.3, 0.3, 0.3, 1.0],
+      "scale": 0.001
     },
     {
       "name": "Pallet",
       "file": "Pallet.stl",
       "position": [-1.4325, 1.7625, 0.020],
       "rotation": [0, 0, 0],
-      "color": [0.545, 0.271, 0.075, 1.0]
+      "color": [0.545, 0.271, 0.075, 1.0],
+      "scale": 0.001
     },
     {
       "name": "Walls",
       "file": "Walls.stl",
       "position": [0.0, 0.0, 0.0],
       "rotation": [0, 0, 0],
-      "color": [1.0, 1.0, 1.0, 1.0]
+      "color": [1.0, 1.0, 1.0, 1.0],
+      "scale": 0.001
     },
         {
       "name": "TapeYellow",
       "file": "TapeYellow.stl",
       "position": [0.0, 0.6, 0.1],
       "rotation": [0, 0, 0],
-      "color": [1.0, 1.0, 0.0, 1.0]
+      "color": [1.0, 1.0, 0.0, 1.0],
+      "scale": 0.001
     },
         {
       "name": "TapeBlack",
       "file": "TapeBlack.stl",
       "position": [0.0, 0.6, 0.1],
       "rotation": [0, 0, 0],
-      "color": [0.1, 0.1, 0.1, 1.0]
+      "color": [0.1, 0.1, 0.1, 1.0],
+      "scale": 0.001
+    },
+        {
+      "name": "FireExtinguisher",
+      "file": "FireExtinguisher.stl",
+      "position": [0.0, -3.0, 0.0],
+      "rotation": [0, 0, 0],
+      "color": [1.0, 0.0, 0.0, 1.0],
+      "scale": 0.001
+    },
+        {
+      "name": "EStop",
+      "file": "EStop.stl",
+      "position": [0.3, -3.0, 0.45],
+      "rotation": [-1.5, 0, 0],
+      "color": [1.0, 0.0, 0.0, 1.0],
+      "scale": 0.01
     }
   ]
 }

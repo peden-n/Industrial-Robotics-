@@ -109,29 +109,31 @@ def setup_environment():
     
     # Load configuration file
     if not os.path.exists(config_path):
-        print(f"⚠ Warning: Config file not found at {config_path}")
+        print(f" Warning: Config file not found at {config_path}")
         print("  Loading scene with default hardcoded values...")
         
         # Fallback to hardcoded values
         SCALE = 0.001
         SCALE_TUPLE = (SCALE, SCALE, SCALE)
         world_objects = [
-            ("Stand1.stl", SE3(0, 0, 0).A, (0.5, 0, 0, 1)),
-            ("Stand2.stl", SE3(0.0, 0.0, 0.0).A, (0.2, 0.5, 0.2, 1)),
-            ("Stand3.stl", SE3(0, 0, 0).A, (0.2, 0.2, 0.7, 1)),
-            ("TableLong.stl", SE3(0.0, 0.53, 0.4).A, (0.75, 0.75, 0.75, 1)),
-            ("TableShort.stl", SE3(0.65, 1.48, 0.4).A, (0.75, 0.75, 0.75, 1)),
-            ("Conveyor.stl", SE3(0, -0.5, 0.48).A, (0.3, 0.3, 0.3, 1)),
-            ("Pallet.stl", SE3(-0.9325, 1.7625, 0.0).A, (0.545, 0.271, 0.075, 1)),
-            ("Walls.stl", SE3(0, 0, 0).A, (1.0, 1.0, 1.0, 1)),
-            ("TapeYellow.stl", SE3(0, 0.6, 0.1).A, (1.0, 1.0, 0.0, 1.0)),
-            ("TapeBlack.stl", SE3(0, 0.6, 0.1).A, (0.0, 0.0, 0.0, 1.0)),
+            ("Stand1.stl", SE3(0, 0, 0).A, (0.5, 0, 0, 1), SCALE_TUPLE),
+            ("Stand2.stl", SE3(0.0, 0.0, 0.0).A, (0.2, 0.5, 0.2, 1), SCALE_TUPLE),
+            # ("Stand3.stl", SE3(0, 0, 0).A, (0.2, 0.2, 0.7, 1), SCALE_TUPLE),
+            ("TableLong.stl", SE3(0.0, 0.53, 0.4).A, (0.75, 0.75, 0.75, 1), SCALE_TUPLE),
+            ("TableShort.stl", SE3(0.65, 1.48, 0.4).A, (0.75, 0.75, 0.75, 1), SCALE_TUPLE),
+            ("Conveyor.stl", SE3(0, -0.5, 0.48).A, (0.3, 0.3, 0.3, 1), SCALE_TUPLE),
+            ("Pallet.stl", SE3(-0.9325, 1.7625, 0.0).A, (0.545, 0.271, 0.075, 1), SCALE_TUPLE),
+            ("Walls.stl", SE3(0, 0, 0).A, (1.0, 1.0, 1.0, 1), SCALE_TUPLE),
+            ("TapeYellow.stl", SE3(0, 0.6, 0.1).A, (1.0, 1.0, 0.0, 1.0), SCALE_TUPLE),
+            ("TapeBlack.stl", SE3(0, 0.6, 0.1).A, (0.0, 0.0, 0.0, 1.0), SCALE_TUPLE),
+            ("FireExtinguisher.stl", SE3(0, -3.0, 0.0).A, (1.0, 0.0, 0.0, 1.0), SCALE_TUPLE),
+            ("EStop.stl", SE3(0.05, -3.0, 0.0).A, (0.0, 1.0, 0.0, 1.0), (1.0, 1.0, 1.0)),
         ]
         
-        for stl_file, pose, color in world_objects:
+        for stl_file, pose, color, scale_tuple in world_objects:
             stl_path = os.path.join(environment_dir, stl_file)
             try:
-                mesh = geometry.Mesh(stl_path, pose=pose, color=color, scale=SCALE_TUPLE)
+                mesh = geometry.Mesh(stl_path, pose=pose, color=color, scale=scale_tuple)
                 env.add(mesh)
                 scene_objects[stl_file.replace('.stl', '')] = mesh
                 print(f"✓ Loaded {stl_file}")
@@ -160,11 +162,18 @@ def setup_environment():
             rotation = obj_config.get('rotation', [0, 0, 0])  # Roll, Pitch, Yaw
             color = tuple(obj_config.get('color', [0.7, 0.7, 0.7, 1.0]))
             
+            # Handle individual object scale (if specified) or use global scale
+            obj_scale = obj_config.get('scale', scale)
+            if isinstance(obj_scale, (int, float)):
+                obj_scale_tuple = (obj_scale, obj_scale, obj_scale)
+            else:
+                obj_scale_tuple = tuple(obj_scale)
+            
             # Create SE3 pose
             pose = SE3(position[0], position[1], position[2]) * SE3.RPY(rotation)
             
             try:
-                mesh = geometry.Mesh(stl_path, pose=pose.A, color=color, scale=scale_tuple)
+                mesh = geometry.Mesh(stl_path, pose=pose.A, color=color, scale=obj_scale_tuple)
                 env.add(mesh)
                 scene_objects[obj_config['name']] = mesh
                 print(f" Loaded {stl_file} at {position}")
