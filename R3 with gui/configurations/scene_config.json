@@ -56,6 +56,20 @@
       "position": [0.0, 0.0, 0.0],
       "rotation": [0, 0, 0],
       "color": [1.0, 1.0, 1.0, 1.0]
+    },
+        {
+      "name": "TapeYellow",
+      "file": "TapeYellow.stl",
+      "position": [0.0, 0.6, 0.1],
+      "rotation": [0, 0, 0],
+      "color": [1.0, 1.0, 0.0, 1.0]
+    },
+        {
+      "name": "TapeBlack",
+      "file": "TapeBlack.stl",
+      "position": [0.0, 0.6, 0.1],
+      "rotation": [0, 0, 0],
+      "color": [0.1, 0.1, 0.1, 1.0]
     }
   ]
 }

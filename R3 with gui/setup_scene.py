@@ -124,6 +124,8 @@ def setup_environment():
             ("Conveyor.stl", SE3(0, -0.5, 0.48).A, (0.3, 0.3, 0.3, 1)),
             ("Pallet.stl", SE3(-0.9325, 1.7625, 0.0).A, (0.545, 0.271, 0.075, 1)),
             ("Walls.stl", SE3(0, 0, 0).A, (1.0, 1.0, 1.0, 1)),
+            ("TapeYellow.stl", SE3(0, 0.6, 0.1).A, (1.0, 1.0, 0.0, 1.0)),
+            ("TapeBlack.stl", SE3(0, 0.6, 0.1).A, (0.0, 0.0, 0.0, 1.0)),
         ]
         
         for stl_file, pose, color in world_objects:
