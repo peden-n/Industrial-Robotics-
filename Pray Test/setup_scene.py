@@ -57,7 +57,7 @@ def add_robot_meshes(env, robot, base_xyz=BASE_XYZ):
                 )
                 env.add(mesh)
                 meshes[k] = mesh
-                print(f"✓ Loaded {stl_name}")
+                print(f"Loaded {stl_name}")
             except Exception as e:
                 print(f"[Warning] Failed to load {stl_name}:", e)
         else:
@@ -132,7 +132,7 @@ def setup_environment():
                 mesh = geometry.Mesh(stl_path, pose=pose, color=color, scale=SCALE_TUPLE)
                 env.add(mesh)
                 scene_objects[stl_file.replace('.stl', '')] = mesh
-                print(f"✓ Loaded {stl_file}")
+                print(f"Loaded {stl_file}")
             except Exception as e:
                 print(f"[Warning] Could not load {stl_file}:", e)
     else:
@@ -150,7 +150,7 @@ def setup_environment():
             stl_path = os.path.join(environment_dir, stl_file)
             
             if not os.path.exists(stl_path):
-                print(f"  ⚠ {stl_file} not found, skipping...")
+                print(f"{stl_file} not found, skipping...")
                 continue
             
             # Get position and rotation
@@ -165,7 +165,7 @@ def setup_environment():
                 mesh = geometry.Mesh(stl_path, pose=pose.A, color=color, scale=scale_tuple)
                 env.add(mesh)
                 scene_objects[obj_config['name']] = mesh
-                print(f"✓ Loaded {stl_file} at {position}")
+                print(f"Loaded {stl_file} at {position}")
             except Exception as e:
                 print(f"[Warning] Could not load {stl_file}:", e)
 

@@ -189,7 +189,7 @@ def move_to_position(robot, meshes, env, target_pos, target_orient=None, update_
         print(f"  Target (world): {np.round(target_pos, 3)}")
         print(f"  Actual (world): {np.round(final_pos_world, 3)}")
     else:
-        print(f"✓ Reached target position (error: {error*1000:.2f}mm)")
+        print(f"Reached target position (error: {error*1000:.2f}mm)")
     
     return True
 
@@ -239,7 +239,7 @@ def trace_path(robot, meshes, env, waypoints, target_orient=None, update_func=No
             return False
     
     print(f"\n{'='*50}")
-    print("✓ Path complete!")
+    print("Path complete!")
     print(f"{'='*50}\n")
     return True
 

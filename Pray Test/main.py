@@ -164,7 +164,7 @@ def main():
     
     # REACHABILITY TEST - just touch each object without picking up
     print("\n" + "=" * 70)
-    print("🔍 REACHABILITY TEST - TOUCHING EACH OBJECT")
+    print("REACHABILITY TEST - TOUCHING EACH OBJECT")
     print("=" * 70)
     
     approach_height = 0.15  # 15cm above each object
@@ -181,9 +181,9 @@ def main():
         
         success = move_to_position_smooth(robot, env, meshes, touch_pos)
         if success:
-            print(f"   ✅ Successfully reached Lid {i+1}!")
+            print(f"Successfully reached Lid {i+1}!")
         else:
-            print(f"   ❌ FAILED to reach Lid {i+1}")
+            print(f"FAILED to reach Lid {i+1}")
         
         time.sleep(0.5)
     
@@ -199,9 +199,9 @@ def main():
         
         success = move_to_position_smooth(robot, env, meshes, touch_pos)
         if success:
-            print(f"   ✅ Successfully reached Box {i+1}!")
+            print(f"Successfully reached Box {i+1}!")
         else:
-            print(f"   ❌ FAILED to reach Box {i+1}")
+            print(f"FAILED to reach Box {i+1}")
         
         time.sleep(0.5)
     
@@ -216,27 +216,27 @@ def main():
         
         success = move_to_position_smooth(robot, env, meshes, touch_pos)
         if success:
-            print(f"   ✅ Successfully reached End Position {i+1}!")
+            print(f"Successfully reached End Position {i+1}!")
         else:
-            print(f"   ❌ FAILED to reach End Position {i+1}")
-        
+            print(f"FAILED to reach End Position {i+1}")
+
         time.sleep(0.5)
     
     # All done!
     print("\n" + "=" * 70)
-    print("✅ REACHABILITY TEST COMPLETE!")
+    print("REACHABILITY TEST COMPLETE!")
     print("=" * 70)
     print(f"\nReview the results above to see which positions are reachable.")
     print(f"Any failed positions may need adjusting in the config files.")
     
     # Hold simulation
-    print("\n💡 Simulation running. Press Ctrl+C to exit.")
+    print("\n Simulation running. Press Ctrl+C to exit.")
     
     try:
         while True:
             env.step(0.05)
     except KeyboardInterrupt:
-        print("\n\n👋 Shutting down...")
+        print("\n\n Shutting down...")
         try:
             env.close()
         except:
