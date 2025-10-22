@@ -14,12 +14,8 @@ from scenenatsversion import Environment
 from ir_support.robots.UR3 import UR3  # package from your link
 from itertools import zip_longest
 from collision import AABB, first_collision_index, config_in_collision
-from robot_gui import SimpleRobotGUI
-from utilities.stl_manager import STLManager
-import os,json 
-import threading
 
-from planner import move_robot_with_replanning
+from planner_20Oct import move_robot_with_replanning
 #from roboticstoolbox.models.DH import UR3
 
 
@@ -37,7 +33,45 @@ donut_offset = SE3(donut_x_offset, donut_y_offset, donut_z_offset)
 burnt_offset = SE3(burnt_x_offset, burnt_y_offset, burnt_z_offset)
 
 tool_offset = SE3(0, 0, 0)  # 40 mm above the donut when grasping from top
+#----------------- meshes -----------------
+dounut1 = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut2.dae",
+    pose=(SE3(-0.305, -0.405, 0.48)+ donut_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+  )
+dounut3 = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut2.dae",
+    pose=(SE3(-0.205, -0.405, 0.48)+ donut_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+  )
 
+
+dounut2 = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut2.dae",
+    pose=(SE3(-0.405, -0.405, 0.48)+ donut_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+  )
+
+burnt = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut_burnt.dae",
+    pose=(SE3(0.43, -0.38, 0.48)+ burnt_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+ )
+burnt2 = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut_burnt.dae",
+    pose=(SE3(0.46, -0.58, 0.48)+ burnt_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+ )
+burnt3 = Mesh(
+    filename="/Users/nataliebusch/Documents/Industal Robotics/Assignment 2/Industrial-Robotics-/Donut_burnt.dae",
+    pose=(SE3(0.495, -0.48, 0.48)+ burnt_offset),  # place + rotate (degrees)
+    scale= (0.001, 0.001, 0.001)                                          # adjust if needed
+ )
+
+import numpy as np
+from spatialmath import SE3
+
+# --- Geometry helpers ---
 
 #-----------------------planner ------------------------------------------
 def plan_safe_trajectory(
@@ -235,266 +269,221 @@ def highest_obstacle_top(obstacles: Iterable[AABB]) -> float:
         return max(box.max_xyz[2] for box in obstacles)
     except ValueError:
         return 0.0  # no obstacles
+
+if __name__ == "__main__":
+    # platform along the Y axis in front of the table, included in the enclosure
+    workenv = Environment()
+    print("A---------------")
     
-def create_GP7():
+    base_pose= SE3(0,0,0.34) 
+    
+    env = workenv.get_env()
+    print("A")
+    r = UR3()
+    r2= UR3()
+    r.base = base_pose 
+    r2.base = base_pose * SE3(-0.4, 0.0, 0.0) 
+   
+    
+
+    
+    q = [0, -pi/3, pi/3, 0, pi/2, 0]   # nice pose
+    T_ee = r2.fkine(q)
+    print("A")
+    print (T_ee)
+    r.add_to_env(workenv.env)
+    print("A")
+    env.step(0.01)
+
+    env.add(dounut1)
+    env.add(dounut2)
+    env.add(dounut3)
+
+    env.add(burnt)
+    env.add(burnt2)
+    env.add(burnt3)
     l1 = DHLink(d=0.33, a=0.4, alpha=pi/2, qlim=[-pi, pi])
     l2 = DHLink(d=0, a=0.445, alpha=0, qlim=[-pi, pi])
     l3 = DHLink(d=0, a=0.04, alpha=pi/2, qlim=[-pi, pi])
     l4 = DHLink(d=0.44, a=0, alpha=-pi/2, qlim=[-pi, pi])
     l5 = DHLink(d=0.08, a=0, alpha=pi/2, qlim=[-pi, pi])
     l6 = DHLink(d=0, a=0, alpha=0, qlim=[-pi, pi])
-    r2 = DHRobot([l1, l2, l3,l4, l5, l6], name='GP7')
+
+
+
+    r2 = DHRobot([l1, l2, l3,l4, l5, l6], name='my_robot')
+    #robot = LinearUR3()
+    #Give the robot a cylinder mesh (links) to display in Swift environment
     cyl_viz = CylindricalDHRobotPlot(r2, cylinder_radius=0.03, color="#3478f6")
     r2 = cyl_viz.create_cylinders()
+    r2.q = [0, np.deg2rad(30), -np.deg2rad(30), 0, np.deg2rad(40), 0]
+    #print(burnt.T [0], burnt.T [1], burnt.T [2])
+    #get_nut = SE3(dounut1.T[0], dounut1.T[1], dounut1.T[2])  # 10 cm above 
+    #move_ur3(cell, r, T_above)
+    
     r2.base = r2.base * SE3(-0.1,-1,0.35)
-    return r2
-
-def create_praybot():
-    link1 = DHLink(d=0.445, a=0.1404, alpha=np.pi / 2, qlim=np.deg2rad([-180, 180]), offset=0)
-    link2 = DHLink(d=0.17, a=0.7, alpha=0.0, qlim=np.deg2rad([-155, 95]), offset=np.pi / 2)
-    link3 = DHLink(d=-0.17, a=0.115, alpha=np.pi / 2, qlim=np.deg2rad([-75, 180]))
-    link4 = DHLink(d=0.8, a=0.0, alpha=np.pi / 2, qlim=np.deg2rad([-400, 400]))
-    link5 = DHLink(d=0.0, a=0.0, alpha=-np.pi / 2, qlim=np.deg2rad([-120, 120]))
-    link6 = DHLink(d=0.0, a=0.0, alpha=0.0, qlim=np.deg2rad([-400, 400]))
-
-    robot = DHRobot([link1, link2, link3, link4, link5, link6], name="myRobot")
-    cyl_viz = CylindricalDHRobotPlot(robot, cylinder_radius=0.03, color="#3478f6")
-    robot = cyl_viz.create_cylinders()
-    robot.base = SE3(0.0, 1.18, 0.02)
-    return robot
-
-
-
-
-
-def add_objects(env):
-    # Create STL manager for objects
-    manager = STLManager(env)
-    
-    # Get directories
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    models_dir = os.path.join(script_dir, "models")
-    configs_dir = os.path.join(script_dir, "configurations")
-    
-    # Load all parts from their config files
-    print("\n Loading objects from JSON configurations...")
-    
-    # Load different object types
-    objects = {}
-    objects['boxes'] = load_parts_from_config(manager, models_dir, configs_dir, 
-                                             "box_config.json", "BoxBase.stl")
-    objects['lids'] = load_parts_from_config(manager, models_dir, configs_dir,
-                                            "lid_config.json", "BoxLid.stl")
-    objects['donuts'] = load_parts_from_config(manager, models_dir, configs_dir,
-                                              "donut_config.json", "Donut.dae")
-    objects['burnt_donuts'] = load_parts_from_config(manager, models_dir, configs_dir,
-                                                    "burntDonut_config.json", "Donut_burnt.dae")
-    
-    # Load configuration data for reference
-    configs = {}
-    config_files = ["box_config.json", "lid_config.json", "donut_config.json", "burntDonut_config.json"]
-    
-    for config_file in config_files:
-        config_path = os.path.join(configs_dir, config_file)
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                config_name = config_file.replace('_config.json', '').replace('.json', '')
-                configs[config_name] = json.load(f)
-
-    # Print summary
-    total_objects = sum(len(obj_list) for obj_list in objects.values())
-    print(f"\n✓ Scene initialization complete!")
-    print(f"  - Loaded objects: {total_objects} total")
-    for obj_type, obj_list in objects.items():
-        if obj_list:
-            print(f"    • {len(obj_list)} {obj_type}")
-    
-    # Display initial scene for a moment
-    print("\nDisplaying initial scene...")
-    for i in range(30):
-        env.step(0.05)
- 
-    return {
-        'env': env,
-        'manager': manager,
-        'objects': objects,
-        'configs': configs
-    }
-
-def load_parts_from_config(manager, models_dir, configs_dir, config_filename, model_filename):
-    """
-    Load multiple parts from a JSON config file at their 'start' positions.
-    
-    Args:
-        manager: STLManager instance
-        models_dir: Directory containing model files
-        configs_dir: Directory containing config JSON files
-        config_filename: Name of the JSON config file (e.g., 'box_config.json')
-        model_filename: Name of the model file (e.g., 'BoxBase.stl')
-    
-    Returns:
-        List of loaded part objects
-    """
-    config_path = os.path.join(configs_dir, config_filename)
-    model_path = os.path.join(models_dir, model_filename)
-    
-    if not os.path.exists(config_path):
-        print(f"✗ Config file not found: {config_path}")
-        return []
-    
-    if not os.path.exists(model_path):
-        print(f"✗ Model file not found: {model_path}")
-        return []
-    
-    with open(config_path, 'r') as f:
-        configs = json.load(f)
-    
-    parts = []
-    part_type = config_filename.replace('_config.json', '').replace('.json', '')
-    
-    for i, config in enumerate(configs):
-        name = f"{part_type}_{i+1}"
-        position = config.get('start', [0, 0, 0])
-        rpy = config.get('start_rpy', [0, 0, 0])
-        color = config.get('color', [0.7, 0.7, 0.7, 1.0])
-        
-        part = manager.add(
-            model_path,
-            name=name,
-            position=position,
-            scale=0.001,
-            color=tuple(color)
-        )
-        
-        if part:
-            part.rpy = rpy
-            parts.append(part)
-            print(f"  ✓ Loaded {name} at {position}")
-    
-    return parts
-
-def run_all_moves(env, gui, r, r2, r3, scene_data):
-
-    donuts = scene_data["objects"].get('donuts',[])
-    burnt_donuts = scene_data["objects"].get('burnt_donuts',[])
-    lids = scene_data['objects'].get('lids', [])
-    boxes = scene_data['objects'].get('boxes', [])
-    box_configs = scene_data['configs'].get('box', [])
-    donut1 = donuts[0]
-
+    env.add(r2)
     GRASP_FROM_TOP = SE3.Rx(pi) * SE3(0, 0, -0.08) 
-
+    #print(get_nut)
+    get_nut = SE3(0.1, 0.2, 0.95)
     obstacles = [
         # Table top (center, size) -> width x depth x thickness
-        AABB.from_center_size(center=(0.0, 0.53, 0.4), size=(1.4, 0.48, 0.1)),
+        AABB.from_center_size(center=(0.0, 0.53, 0.4), size=(1.4, 0.48, 0.3)),
          # Table top (center, size) -> width x depth x thickness
-        AABB.from_center_size(center=(0, -0.250, 0.16), size=(1.4, 0.48, 0.1)),
+        AABB.from_center_size(center=(0, -0.5, 0.48), size=(1.4, 0.3, 0.1)),
         # A no-go pillar
         AABB.from_center_size(center=(0, 0, 0.16), size=(0.2, 0.2, 0.05)),
          # A no-go pillar
         AABB.from_center_size(center=(0, -0.25, 0.16), size=(0.2, 0.2, 0.05)),
         # floor 
         AABB.from_center_size(center=(0,0,0), size=(3,3,0.01))
+
      ]
     
+   
     # Movement set 1
     move_robot_with_replanning(
         [[r,SE3(-0.305, -0.405, 0.48) * GRASP_FROM_TOP, None],
-        [r2,SE3(-0.495, -0.58, 0.48)* GRASP_FROM_TOP, None],
-        [r3,SE3(0.850, 1.380, 0.400)* GRASP_FROM_TOP, None]],
-        env, gui, 
+        [r2,SE3(0.43, -0.38, 0.48)* GRASP_FROM_TOP, None]],
+        env, 
         obstacles,
         link_radius=0.03,
         steps_per_segment=90,
         z_clear=0.08,
         max_detours=3,
-        dt=0.02
+        dt=0.02,
     )
     
     # Movement set 2
     move_robot_with_replanning(
-        [[r,SE3(-0.40, 0.3, 0.48) * GRASP_FROM_TOP, donut1],
-        [r2,SE3(-0.6, -0.8, 0.48)* GRASP_FROM_TOP, None]],
-        env, gui, obstacles,
+        [[r,SE3(0.0, 0.4, 0.5) * GRASP_FROM_TOP, dounut1],
+        [r2,SE3(0.8, -0.9, 0.48)* GRASP_FROM_TOP, burnt]],
+        env, obstacles,
         link_radius=0.03,
         steps_per_segment=90,
         z_clear=0.08, 
         max_detours=3,
-        dt=0.02
+        dt=0.02,
     )
 
     # Movement set 3
     move_robot_with_replanning(
-        [[r,SE3(-0.405, -0.305, 0.48) * GRASP_FROM_TOP, None],
-        [r2,SE3(-0.5, -0.3,1.0) * GRASP_FROM_TOP , None]],
-        env, gui, obstacles,
+        [[r,SE3(0.0, 0.4, 0.48) * GRASP_FROM_TOP, dounut1],
+        [r2,SE3(0.8, -0.9, 0.48)* GRASP_FROM_TOP, burnt]],
+        env, obstacles,
         link_radius=0.03,
         steps_per_segment=90,
         z_clear=0.08, 
         max_detours=3,
-        dt=0.02
+        dt=0.02,
     )
-
+# Movement set 4
+    move_robot_with_replanning(
+        [[r,SE3(0.0, 0.40, 0.5) * GRASP_FROM_TOP, None]],
+        env, 
+        obstacles,
+        link_radius=0.03,
+        steps_per_segment=90,
+        z_clear=0.08,
+        max_detours=3,
+        dt=0.02,
+    )
+       
     # Movement set 4
     move_robot_with_replanning(
-        [[r,SE3(-0.40, 0.3, 0.48) * GRASP_FROM_TOP, donut1],
-        [r2,SE3(-0.6, -0.8, 0.48)* GRASP_FROM_TOP, None]],
-        env, gui, obstacles,
+        [[r,SE3(-0.405, -0.405, 0.48) * GRASP_FROM_TOP, None],
+        [r2,SE3(0.8, -0.9, 0.48)* GRASP_FROM_TOP, None]],
+        env, 
+        obstacles,
         link_radius=0.03,
         steps_per_segment=90,
-        z_clear=0.08, 
+        z_clear=0.08,
         max_detours=3,
-        dt=0.02
+        dt=0.02,
     )
 
     # Movement set 5
     move_robot_with_replanning(
-        [[r,SE3(-0.405, -0.305, 0.48) * GRASP_FROM_TOP, None],
-        [r2,SE3(-0.5, -0.3,1.0) * GRASP_FROM_TOP , None]],
-        env, gui, obstacles,
+        [[r,SE3(0.0, 0.4, 0.55) * GRASP_FROM_TOP, dounut2],
+        [r2,SE3(0.8, -0.9, 0.48)* GRASP_FROM_TOP, burnt2]],
+        env, obstacles,
         link_radius=0.03,
         steps_per_segment=90,
         z_clear=0.08, 
         max_detours=3,
-        dt=0.02
+        dt=0.02,
     )
 
-    input("Scene ready (platform on Y axis, enclosure includes table+platform, 3 UR3s). Press Enter to quit...")
+    # Movement set 6
+    move_robot_with_replanning(
+        [[r,SE3(0.0, 0.4, 0.5) * GRASP_FROM_TOP, dounut2],
+        [r2,SE3(0.8, -0.9, 0.3)* GRASP_FROM_TOP, burnt2]],
+        env, obstacles,
+        link_radius=0.03,
+        steps_per_segment=90,
+        z_clear=0.08, 
+        max_detours=3,
+        dt=0.02,
+    )
+# Movement set 7
+    move_robot_with_replanning(
+        [[r,SE3(0.0, 0.40, 0.55) * GRASP_FROM_TOP, None]],
+        env, 
+        obstacles,
+        link_radius=0.03,
+        steps_per_segment=90,
+        z_clear=0.08,
+        max_detours=3,
+        dt=0.02,
+    )
 
-if __name__ == "__main__":
-    #Create the main environment
-    workenv = Environment()
-    env = workenv.get_env()
+ #Movement set 8
+    move_robot_with_replanning(
+        [[r,SE3(-0.205, -0.405, 0.48) * GRASP_FROM_TOP, None],
+        [r2,SE3(0.495, -0.48, 0.48)* GRASP_FROM_TOP, None]],
+        env, 
+        obstacles,
+        link_radius=0.03,
+        steps_per_segment=90,
+        z_clear=0.08,
+        max_detours=3,
+        dt=0.02,
+    )
+
+    '''
+
+    move_ur3(env,robotTargets=[
+        [r,SE3(-0.305, -0.405, 0.48) * GRASP_FROM_TOP, None],
+        [r2,SE3(-0.495, -0.58, 0.48)* GRASP_FROM_TOP, None]
+        ]
+        )
+       # -0.405, -0.405, 0.48
     
-    #Spawn robots
-    r = UR3()
-    base_pose= SE3(0,0,0.34) 
-    r.base = base_pose
-    r2 = create_GP7()
-    r3 = create_praybot()
+    move_ur3(env,robotTargets=[
+        [r,SE3(-0.40, 0.3, 0.48) * GRASP_FROM_TOP, dounut1],
+         [r2,SE3(-0.6, -0.8, 0.48)* GRASP_FROM_TOP, burnt]]
+        )
+    #-0.40, 0.135, 0.40
+    move_ur3(env,robotTargets=[
+        [r,SE3(-0.405, -0.405, 0.48) * GRASP_FROM_TOP, None],
+        [r2,SE3(-0.5, -0.3,1.0) * GRASP_FROM_TOP , None]
+        ]
+        )         
+    
+    move_ur3(env,robotTargets=
+        [[r,SE3(-0.40, 0.0, 0.40)* GRASP_FROM_TOP, dounut2]])
 
-    env.add(r2)
-    env.add(r3)
-
-    q = [0, -pi/3, pi/3, 0, pi/2, 0]   
-    T_ee = r2.fkine(q)
-    print (T_ee)
-    r.add_to_env(workenv.env)
-    env.step(0.01)
-
-    #Create rest of scene data
-    scene_data = add_objects(env)
-
-    # Create and launch GUI
-    print("\n  Launching GUI control panel...")
-    gui = SimpleRobotGUI()
-
-    worker = threading.Thread(
-    target=run_all_moves,
-    args=(env, gui, r, r2, r3, scene_data),
-    daemon=True
-    )
-    worker.start()
-    gui.run()
- 
-    r2.q = [0, np.deg2rad(30), -np.deg2rad(30), 0, np.deg2rad(40), 0]
+    move_ur3(env,robotTargets=
+        [[r,SE3(-0.4, 0.4,1.1) * GRASP_FROM_TOP, None]])
+    
+    #cell.move_ur3(cell._env.robots[0],[0, -pi/3, pi/3, 0, pi/2, 0])
+    #move_ur3(cell,r,SE3(0.2, 0.9, 0.90) * GRASP_FROM_TOP, donut=dounut1)
+   # x, y, z = dounut1.T[:3, -1]
+    #cell._env.add(dounut2)
+    #move_ur3(cell,r,get_nut * GRASP_FROM_TOP)
+    #move_ur3(cell,r,SE3(0.2, 0.9, 0.93) * GRASP_FROM_TOP, donut=dounut2)
+  #  get_nut = (SE3(x, y, z)- donut_offset) # 10 cm above
+    #move_ur3(cell,r,get_nut * GRASP_FROM_TOP)
+   # cell._env.add(dounut2)
+  '''
+    input("Scene ready (platform on Y axis, enclosure includes table+platform, 3 UR3s). Press Enter to quit...")

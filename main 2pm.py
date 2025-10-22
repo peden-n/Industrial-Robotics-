@@ -25,18 +25,6 @@ from planner import move_robot_with_replanning
 
 Color = Tuple[float, float, float, float]  # RGBA 0..1
 
-#Define offests to fix donut positions
-donut_x_offset = -0.08
-donut_y_offset = -0.08
-donut_z_offset = 0.0
-burnt_x_offset = -0.08
-burnt_y_offset = -0.08
-burnt_z_offset = 0.0
-
-donut_offset = SE3(donut_x_offset, donut_y_offset, donut_z_offset)
-burnt_offset = SE3(burnt_x_offset, burnt_y_offset, burnt_z_offset)
-
-tool_offset = SE3(0, 0, 0)  # 40 mm above the donut when grasping from top
 
 
 #-----------------------planner ------------------------------------------
@@ -58,7 +46,7 @@ def plan_safe_trajectory(
     q_start = np.asarray(robot.q, dtype=float)
 
     # 0) Try direct path (start -> target)
-    q_goal = solve_ik(robot, T_target, q_seed=q_start)
+    q_goal = _solve_ik(robot, T_target, q_seed=q_start)
     if q_goal is None:
         return None
 
@@ -84,8 +72,8 @@ def plan_safe_trajectory(
     T_up_target = SE3(target_xy[0], target_xy[1], safe_z) * SE3.RPY(T_target.rpy(), order="xyz")
 
     # Plan segments: start -> up_start -> up_target -> target
-    q_up_start  = solve_ik(robot, T_up_start,  q_seed=q_start)
-    q_up_target = solve_ik(robot, T_up_target, q_seed=q_up_start if q_up_start is not None else q_start)
+    q_up_start  = _solve_ik(robot, T_up_start,  q_seed=q_start)
+    q_up_target = _solve_ik(robot, T_up_target, q_seed=q_up_start if q_up_start is not None else q_start)
     if q_up_start is None or q_up_target is None:
         # If we can't even solve the lift, bail out early
         return None
@@ -97,7 +85,7 @@ def plan_safe_trajectory(
 
     idx2 = first_collision_index(robot, Q_combo, obstacles, link_radius=link_radius)
     if idx2 is None:
-        return Q_combo  # ✅ lift-over worked
+        return Q_combo  #  lift-over worked
 
     # 2nd try ----sideways
     lateral_offsets = [(0.25, 0.0), (-0.25, 0.0), (0.0, 0.25), (0.0, -0.25), (0.35, 0.0), (-0.35, 0.0)]
@@ -133,91 +121,8 @@ def plan_safe_trajectory(
     return None
 
 # ----------------- run -----------------
-def move_ur3(env,robotTargets=[]):
-        
-        motions = []
-        last_qs = []
-
-        for ur3, T_target, donut in robotTargets:
-            q_start = np.asarray(ur3.q, dtype=float)
-            q_goal = solve_ik(ur3, T_target)
-            Q = rtb.jtraj(q_start, q_goal, 150).q
-            motions.append((ur3, Q, donut))
-            last_qs.append(Q[-1])
 
 
-        for frame in zip_longest(*[Q for (_, Q, _) in motions], fillvalue=None):
-        # frame is a tuple: (q1 or None, q2 or None, ...)
-            for idx, (ur3, Q, donut) in enumerate(motions):
-                q = frame[idx] if frame[idx] is not None else last_qs[idx]
-                ur3.q = q
-                if donut is not None:
-
-                    T_ee = ur3.fkine(q)             # SE3 pose of end-effector
-                    T_donut = T_ee * donut_offset
-
-                    if hasattr(donut, "T"):
-                        donut.T = T_donut
-                    elif hasattr(donut, "pose"):
-                        donut.pose = T_donut
-                    else:
-                    # Fallback: try a generic attribute name
-                        try:
-                            setattr(donut, "pose", T_donut)
-                        except Exception:
-                            pass
-            env.step(0.02)
-            
-            
-
-
-
-        #for q in traj:
-        #    ur3.q = q
-        #    if donut is not None:
-        #      T_ee = ur3.fkine(q)             # SE3 pose of end-effector
-        #      T_donut = T_ee * donut_offset     # apply any offset so it doesn’t intersect the gripper
-
-               # Support both common spatialgeometry attributes
-        #      if hasattr(donut, "T"):
-        #        donut.T = T_donut
-        #      elif hasattr(donut, "pose"):
-        #        donut.pose = T_donut
-        #      else:
-                # Fallback: try a generic attribute name
-        #        try:
-        #            setattr(donut, "pose", T_donut)
-        #        except Exception:
-        #            pass
-        #    self._env.step(0.02)
-
-
-def solve_ik(robot, T_target,q_seed: Optional[np.ndarray] = None):
-     """
-     Try full pose IK first; if it fails, try position-only (ignore orientation).
-     Returns a numpy array of joint angles or raises a ValueError.
-     """
-     q0 = np.asarray(q_seed, dtype=float) if q_seed is not None else np.asarray(robot.q, dtype=float)
-     
-    # print(T_target)
-     # 1) full pose (position + orientation)
-     try:
-        sol = robot.ikine_LM(T_target, q0=q0)
-        if sol.success:
-            return np.array(sol.q, dtype=float)
-     except Exception:
-        pass
-
-     # 2) position-only (mask: x,y,z true; roll/pitch/yaw false)
-     try:
-        mask = [1, 1, 1, 0, 0, 0]
-        sol = robot.ikine_LM(T_target, q0=q0, mask=mask)
-        if sol.success:
-            return np.array(sol.q, dtype=float)
-     except Exception:
-        pass
-
-     raise ValueError("IK did not converge for the requested target pose.")
 
 #-- jtraj stuff ---------------------------------------------------------
 
@@ -260,8 +165,11 @@ def create_praybot():
     robot = DHRobot([link1, link2, link3, link4, link5, link6], name="myRobot")
     cyl_viz = CylindricalDHRobotPlot(robot, cylinder_radius=0.03, color="#3478f6")
     robot = cyl_viz.create_cylinders()
+    robot = cyl_viz.create_cylinders()
     robot.base = SE3(0.0, 1.18, 0.02)
     return robot
+
+
 
 
 
@@ -373,6 +281,21 @@ def load_parts_from_config(manager, models_dir, configs_dir, config_filename, mo
     
     return parts
 
+def describe_aabb(label, aabb):
+    mn = np.array(aabb.min_xyz); mx = np.array(aabb.max_xyz)
+    print(f"{label}: X[{mn[0]:.3f},{mx[0]:.3f}]  Y[{mn[1]:.3f},{mx[1]:.3f}]  Z[{mn[2]:.3f},{mx[2]:.3f}]")
+    print("----------------------------------------------------")
+
+
+def _dbg_obstacles(obstacles):
+    print("\n[DEBUG] Obstacles:")
+    for i, b in enumerate(obstacles):
+        mn = tuple(round(x, 3) for x in b.min_xyz)
+        mx = tuple(round(x, 3) for x in b.max_xyz)
+        print(f"  [{i}] min={mn} max={mx} top_z={mx[2]:.3f}")
+    print(f"  -> highest_obstacle_top = {highest_obstacle_top(obstacles):.3f}")
+
+
 def run_all_moves(env, gui, r, r2, r3, scene_data):
 
     donuts = scene_data["objects"].get('donuts',[])
@@ -380,28 +303,52 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
     lids = scene_data['objects'].get('lids', [])
     boxes = scene_data['objects'].get('boxes', [])
     box_configs = scene_data['configs'].get('box', [])
-    donut1 = donuts[0]
+    donut1 = donuts[6]
+    dount2 = donuts[7]
+    burnt_donut1 = burnt_donuts[0]
+    burnt_donut2 = burnt_donuts[2]
+    lid1 =lids[0]
 
-    GRASP_FROM_TOP = SE3.Rx(pi) * SE3(0, 0, -0.08) 
+
+
+    GRASP_FROM_TOP = SE3.Rx(pi) * SE3(0, 0, -0.002) 
 
     obstacles = [
         # Table top (center, size) -> width x depth x thickness
-        AABB.from_center_size(center=(0.0, 0.53, 0.4), size=(1.4, 0.48, 0.1)),
+        AABB.from_center_size(center=(0.0, 0.25, 0.2), size=(1, 0.3, 0.2)),
          # Table top (center, size) -> width x depth x thickness
-        AABB.from_center_size(center=(0, -0.250, 0.16), size=(1.4, 0.48, 0.1)),
+        AABB.from_center_size(center=(0, -0.5, 0.225), size=(1, 0.40, 0.35)),
+        # other table 
+        AABB.from_center_size(center=(0.65, 1.48, 0.15), size =(1, 0.40, 0.4)),
         # A no-go pillar
         AABB.from_center_size(center=(0, 0, 0.16), size=(0.2, 0.2, 0.05)),
          # A no-go pillar
         AABB.from_center_size(center=(0, -0.25, 0.16), size=(0.2, 0.2, 0.05)),
         # floor 
-        AABB.from_center_size(center=(0,0,0), size=(3,3,0.01))
+        AABB.from_center_size(center=(0,0,0), size=(3,3,0.01)),
+        #box 
+       # AABB.from_center_size(center = (0,0.5,0.29), size = (1,0.01, 0.4))
      ]
+
+    _dbg_obstacles(obstacles)
+    
+    # Your original definitions (order matters for colors)
+    '''
+    aabbs = [
+    AABB.from_center_size(center=(0.0,  0.25, 0.20), size=(1.0, 0.48, 0.10)),  # table top 1
+    AABB.from_center_size(center=(0.0, -0.25, 0.16), size=(1.0, 0.48, 0.48)),  # table top 2 / block
+    AABB.from_center_size(center=(0.0,  0.00, 0.16), size=(0.20, 0.20, 0.05)), # pillar 1
+    AABB.from_center_size(center=(0.0, -0.25, 0.16), size=(0.20, 0.20, 0.05)), # pillar 2
+    # Floor: if your ground is z=0 and you want it visible above, put center z=thickness/2.
+    AABB.from_center_size(center=(0.0, 0.0, 0.005), size=(3.0, 3.0, 0.01)),    # floor
+    ]
+    '''
+    # Then:
     
     # Movement set 1
     move_robot_with_replanning(
-        [[r,SE3(-0.305, -0.405, 0.48) * GRASP_FROM_TOP, None],
-        [r2,SE3(-0.495, -0.58, 0.48)* GRASP_FROM_TOP, None],
-        [r3,SE3(0.850, 1.380, 0.400)* GRASP_FROM_TOP, None]],
+       [[r,SE3(-0.135, -0.28, 0.48) * GRASP_FROM_TOP, None],
+        [r2,SE3(-0.495, -0.58, 0.48)* GRASP_FROM_TOP, None]],
         env, gui, 
         obstacles,
         link_radius=0.03,
@@ -410,11 +357,12 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
         max_detours=3,
         dt=0.02
     )
+
     
     # Movement set 2
     move_robot_with_replanning(
-        [[r,SE3(-0.40, 0.3, 0.48) * GRASP_FROM_TOP, donut1],
-        [r2,SE3(-0.6, -0.8, 0.48)* GRASP_FROM_TOP, None]],
+        [[r,SE3(0.100, 0.50, 0.48) * GRASP_FROM_TOP, donut1],
+        [r2,SE3(0.045, -0.58, 0.48)* GRASP_FROM_TOP, burnt_donut1]],
         env, gui, obstacles,
         link_radius=0.03,
         steps_per_segment=90,
@@ -423,9 +371,10 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
         dt=0.02
     )
 
+
     # Movement set 3
     move_robot_with_replanning(
-        [[r,SE3(-0.405, -0.305, 0.48) * GRASP_FROM_TOP, None],
+        [[r,SE3(-0.045, -0.205, 0.4) * GRASP_FROM_TOP, None],
         [r2,SE3(-0.5, -0.3,1.0) * GRASP_FROM_TOP , None]],
         env, gui, obstacles,
         link_radius=0.03,
@@ -437,7 +386,7 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
 
     # Movement set 4
     move_robot_with_replanning(
-        [[r,SE3(-0.40, 0.3, 0.48) * GRASP_FROM_TOP, donut1],
+        [[r,SE3(0.100, 0.530, 0.440) * GRASP_FROM_TOP, dount2 ],
         [r2,SE3(-0.6, -0.8, 0.48)* GRASP_FROM_TOP, None]],
         env, gui, obstacles,
         link_radius=0.03,
@@ -449,7 +398,7 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
 
     # Movement set 5
     move_robot_with_replanning(
-        [[r,SE3(-0.405, -0.305, 0.48) * GRASP_FROM_TOP, None],
+        [[r,SE3(-0.205, -0.205, 0.48) * GRASP_FROM_TOP, None],
         [r2,SE3(-0.5, -0.3,1.0) * GRASP_FROM_TOP , None]],
         env, gui, obstacles,
         link_radius=0.03,
@@ -459,7 +408,7 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
         dt=0.02
     )
 
-    input("Scene ready (platform on Y axis, enclosure includes table+platform, 3 UR3s). Press Enter to quit...")
+    input(" Press Enter to quit...")
 
 if __name__ == "__main__":
     #Create the main environment
@@ -472,7 +421,8 @@ if __name__ == "__main__":
     r.base = base_pose
     r2 = create_GP7()
     r3 = create_praybot()
-
+    r3.base = SE3(0.0, 1.18, 0.02)
+    #r3 =add_robot_meshes(env,r3)
     env.add(r2)
     env.add(r3)
 

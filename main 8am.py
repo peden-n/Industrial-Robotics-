@@ -167,29 +167,6 @@ def move_ur3(env,robotTargets=[]):
                         except Exception:
                             pass
             env.step(0.02)
-            
-            
-
-
-
-        #for q in traj:
-        #    ur3.q = q
-        #    if donut is not None:
-        #      T_ee = ur3.fkine(q)             # SE3 pose of end-effector
-        #      T_donut = T_ee * donut_offset     # apply any offset so it doesn’t intersect the gripper
-
-               # Support both common spatialgeometry attributes
-        #      if hasattr(donut, "T"):
-        #        donut.T = T_donut
-        #      elif hasattr(donut, "pose"):
-        #        donut.pose = T_donut
-        #      else:
-                # Fallback: try a generic attribute name
-        #        try:
-        #            setattr(donut, "pose", T_donut)
-        #        except Exception:
-        #            pass
-        #    self._env.step(0.02)
 
 
 def solve_ik(robot, T_target,q_seed: Optional[np.ndarray] = None):
@@ -260,8 +237,62 @@ def create_praybot():
     robot = DHRobot([link1, link2, link3, link4, link5, link6], name="myRobot")
     cyl_viz = CylindricalDHRobotPlot(robot, cylinder_radius=0.03, color="#3478f6")
     robot = cyl_viz.create_cylinders()
+    robot = cyl_viz.create_cylinders()
     robot.base = SE3(0.0, 1.18, 0.02)
     return robot
+
+def add_robot_meshes(env, robot):
+    """
+    Load and add robot link meshes to the environment.
+    Returns a dictionary of mesh objects keyed by link index.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    robot_dir = os.path.join(script_dir, "robot")
+    meshes = {}
+
+    # Load Link0 through Link6 STL files from robot folder
+    for k in range(0, 7):
+        stl_name = f"Link{k}.stl"
+        stl_path = os.path.join(robot_dir, stl_name)
+        
+        if os.path.exists(stl_path):
+            try:
+                mesh = Mesh(
+                    stl_path,
+                    pose = SE3(),
+                    scale=(1.0, 1.0, 1.0),
+                    color=(0.2, 0.2, 0.7, 1),
+                )
+                env.add(mesh)
+                meshes[k] = mesh
+                print(f"✓ Loaded {stl_name}")
+            except Exception as e:
+                print(f"[Warning] Failed to load {stl_name}:", e)
+        else:
+            print(f"[Info] {stl_name} not found; skipping.")
+
+    # Update mesh poses based on current robot configuration
+    update_robot_meshes(robot, meshes)
+    
+    return meshes
+
+
+def update_robot_meshes(robot, meshes):
+    """Update robot mesh poses based on current joint configuration."""
+    if len(meshes) == 0:
+        return
+    
+    try:
+        T_all = robot.fkine_all(robot.q)
+        base_SE3 = SE3(0.0, 1.18, 0.02)
+        
+        for idx, mesh in meshes.items():
+            try:
+                mesh.T = (base_SE3 * T_all[idx]).A
+            except Exception as e:
+                print(f"[Warning] Failed to update mesh {idx}:", e)
+    except Exception as e:
+        print(f"[Warning] Failed to compute FK:", e)
 
 
 
@@ -410,6 +441,7 @@ def run_all_moves(env, gui, r, r2, r3, scene_data):
         max_detours=3,
         dt=0.02
     )
+
     
     # Movement set 2
     move_robot_with_replanning(
@@ -472,7 +504,8 @@ if __name__ == "__main__":
     r.base = base_pose
     r2 = create_GP7()
     r3 = create_praybot()
-
+    r3.base = SE3(0.0, 1.18, 0.02)
+    #r3 =add_robot_meshes(env,r3)
     env.add(r2)
     env.add(r3)
 

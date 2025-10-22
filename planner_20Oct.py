@@ -8,6 +8,15 @@ from collision import AABB, first_collision_index
 from controls import RunController
 from pynput import keyboard
 from itertools import zip_longest
+donut_x_offset = -0.08
+donut_y_offset = -0.08
+donut_z_offset = 0.0
+burnt_x_offset = -0.08
+burnt_y_offset = -0.08
+burnt_z_offset = 0.0
+
+donut_offset = SE3(donut_x_offset, donut_y_offset, donut_z_offset)
+burnt_offset = SE3(burnt_x_offset, burnt_y_offset, burnt_z_offset)
 
 def solve_ik(robot, T_target,q_seed: Optional[np.ndarray] = None):
      """
@@ -33,7 +42,7 @@ def solve_ik(robot, T_target,q_seed: Optional[np.ndarray] = None):
             return np.array(sol.q, dtype=float)
      except Exception:
         pass
-     '''
+     
      try: 
         mask = [1, 1, 1, 0, 0, 1]
         sol = robot.ikine_LM(T_target, q0=q0, mask=mask)
@@ -41,7 +50,7 @@ def solve_ik(robot, T_target,q_seed: Optional[np.ndarray] = None):
             return np.array(sol.q, dtype=float)
      except Exception:
         pass
-        '''
+
      raise ValueError("IK did not converge for the requested target pose.")
 
 
@@ -135,15 +144,14 @@ def on_press(key):
 def move_robot_with_replanning(
     robotTargets,
     env,
-    gui,
     obstacles: List[AABB],
     *,
     link_radius: float = 0.03,
     steps_per_segment: int = 100,
     z_clear: float = 0.08,
-    max_detours: int = 3,
+    max_detours: int = 2,
     dt: float = 0.02
-       ):
+       ) -> bool:
     
     motions = []
     last_qs = []
@@ -160,40 +168,31 @@ def move_robot_with_replanning(
             max_detours=max_detours,
                )
         if Q is None:
-            print(f"[DEBUG] Planned trajectory for robot {r.name if hasattr(r, 'name') else r}:",
-              "Success" if Q is not None else "FAILED")
-
+            print(" Could not find a collision-free plan.")
             return False
         motions.append((r, Q, follow_object))
         last_qs.append(Q[-1])
 
     # Execute the set of movements
     for frame in zip_longest(*[Q for (_, Q, _) in motions], fillvalue=None):
-
-        #Check if emergency button is pressed
-        while gui.stopped == True:
-            env.step(0.02)
-        
         for idx, (r, Q, follow_object) in enumerate(motions):
             q = frame[idx] if frame[idx] is not None else last_qs[idx]
             r.q = q
-
-            #TO DO - CHECK IF ROBOT IS R3 AND IF SO UPDATE MESHES
 
             # Check if there is an object to follow
             if follow_object is not None:
 
                 T_ee = r.fkine(q)             # SE3 pose of end-effector
-                T_follow_object = T_ee
+                T_follow_object = T_ee *donut_offset
 
                 if hasattr(follow_object, "T"):
                     follow_object.T = T_follow_object
                 elif hasattr(follow_object, "pose"):
-                    follow_object.pose = T_follow_object
+                    follow_object.pose = T_follow_object*donut_offset
                 else:
                 # Fallback: try a generic attribute name
                     try:
-                        setattr(follow_object, "pose", T_follow_object)
+                        setattr(follow_object, "pose", T_follow_object*donut_offset)
                     except Exception:
                         pass
         env.step(dt)
